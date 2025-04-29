@@ -1,0 +1,131 @@
+import os
+from fastapi import UploadFile, File
+import pandas as pd
+import torch
+from torch.utils.data import DataLoader
+from dataset import TextDataset, collate_fn, build_vocab, tokenize_text
+from predict import predict
+from model import Model
+
+# Hyperparameters
+BATCH_SIZE = 32
+EPOCHS = 10
+DATA_PATH = 'data.xlsx'
+MODEL_PATH = "trained_model.pth"
+
+
+def train_and_save_model():
+    train_data, test_data, vocab = get_train_and_test_data()
+
+    # Create dataset and dataloader
+    train_dataset = TextDataset(train_data, vocab)
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+
+    # Initialize model with correct vocab size
+    model = Model(vocab_size=len(vocab), hidden_dim=128, output_dim=2)
+
+    # Train the model
+    model.train_model(train_dataloader, epochs=EPOCHS)
+
+    # Save the trained model
+    torch.save(model.state_dict(), MODEL_PATH)
+    print("Successfully saved the trained model to ", MODEL_PATH)
+    return "Successfully trained and saved the model"
+
+def load_trained_model(vocab):
+    """Loads the trained model from disk and ensures compatibility."""
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Initialize model with correct vocab size
+    model = Model(vocab_size=len(vocab), hidden_dim=128, output_dim=2)
+
+    try:
+        # Load model state dict
+        state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=False)
+        model.load_state_dict(state_dict)
+        model.to(device)
+        model.eval()  # Set to evaluation mode
+        print("Model successfully loaded from", MODEL_PATH)
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        exit(1)
+
+    return model, device
+
+def evaluate_model():
+    train_data, test_data, vocab = get_train_and_test_data()
+
+    """Evaluates the trained model on the test dataset."""
+    model, device = load_trained_model(vocab)
+
+    test_dataset = TextDataset(test_data, vocab)
+    test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=collate_fn)
+
+    # Evaluate the model and get all metrics
+    accuracy, precision, recall, f1 = model.evaluate(test_dataloader)
+
+    print(f"Test Accuracy: {accuracy:.2f}%")
+    print(f"Precision: {precision:.2f}")
+    print(f"Recall: {recall:.2f}")
+    print(f"F1-score: {f1:.2f}")
+
+    return f"Test Accuracy: {accuracy:.2f}%, \nPrecision: {precision:.2f}, \nRecall: {recall:.2f}, \nF1-score: {f1:.2f}"
+
+def predict_from_model(input_text):
+    train_data, test_data, vocab = get_train_and_test_data()
+
+    """Runs predictions using the trained model."""
+    model, device = load_trained_model(vocab)
+
+    predicted_class, probabilities = predict(model, input_text, vocab)
+
+    if predicted_class == 1:
+        print(
+            f"The text '{input_text}' is classified as **Adult Content** with probability {probabilities[0][1]:.2f}.")
+        return f"This is classified as **Adult Content** with probability {probabilities[0][1]:.2f}."
+    else:
+        print(
+            f"The text '{input_text}' is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}.")
+        return f"This is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}."
+
+def get_train_and_test_data():
+    # Load dataset
+    data = pd.read_excel(DATA_PATH)
+    data = data[['text', 'label']]
+
+    # Tokenize and prepare the dataset
+    data = [(tokenize_text(row['text']), row['label']) for _, row in data.iterrows()]
+
+    # Split dataset (70% train, 30% test)
+    train_size = int(0.7 * len(data))
+    train_data = data[:train_size]
+    test_data = data[train_size:]
+
+    # Build vocabulary
+    vocab = build_vocab(train_data, min_freq=1)
+
+    return train_data, test_data, vocab
+
+def upload_and_append(file: UploadFile = File(...)):
+    # Load uploaded file into a DataFrame
+    if file.filename.endswith(".csv"):
+        df_new = pd.read_csv(file.file)
+    else:
+        df_new = pd.read_excel(file.file, sheet_name="data", engine="openpyxl")
+
+    # Clean column names
+    df_new.columns = df_new.columns.str.strip().str.lower()
+
+    # Load existing Excel file if it exists
+    if os.path.exists(DATA_PATH):
+        df_existing = pd.read_excel(DATA_PATH, engine="openpyxl")
+        df_existing.columns = df_existing.columns.str.strip().str.lower()
+        df_new = df_new[df_existing.columns]
+        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+    else:
+        df_combined = df_new
+
+    # Save back to the same file
+    df_combined.to_excel(DATA_PATH, index=False, engine="openpyxl")
+
+    return f"{len(df_new)} records appended successfully."
