@@ -1,7 +1,8 @@
 import os
-from fastapi import UploadFile, File
+from fastapi import UploadFile, File, HTTPException
 import pandas as pd
 import torch
+from pydantic import BaseModel
 from torch.utils.data import DataLoader
 from dataset import TextDataset, collate_fn, build_vocab, tokenize_text
 from predict import predict
@@ -19,7 +20,7 @@ def train_and_save_model():
 
     # Create dataset and dataloader
     train_dataset = TextDataset(train_data, vocab)
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)\
 
     # Initialize model with correct vocab size
     model = Model(vocab_size=len(vocab), hidden_dim=128, output_dim=2)
@@ -80,13 +81,19 @@ def predict_from_model(input_text):
     predicted_class, probabilities = predict(model, input_text, vocab)
 
     if predicted_class == 1:
-        print(
-            f"The text '{input_text}' is classified as **Adult Content** with probability {probabilities[0][1]:.2f}.")
-        return f"This is classified as **Adult Content** with probability {probabilities[0][1]:.2f}."
+        print(f"The text '{input_text}' is classified as **Adult Content** with probability {probabilities[0][1]:.2f}.")
+        return {
+            "predicted_class": predicted_class,
+            "input_text": input_text,
+            "description": f"This is classified as **Adult Content** with probability {probabilities[0][1]:.2f}."
+        }
     else:
-        print(
-            f"The text '{input_text}' is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}.")
-        return f"This is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}."
+        print(f"The text '{input_text}' is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}.")
+        return {
+            "predicted_class": predicted_class,
+            "input_text": input_text,
+            "description": f"This is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}."
+        }
 
 def get_train_and_test_data():
     # Load dataset
@@ -106,26 +113,72 @@ def get_train_and_test_data():
 
     return train_data, test_data, vocab
 
-def upload_and_append(file: UploadFile = File(...)):
-    # Load uploaded file into a DataFrame
-    if file.filename.endswith(".csv"):
-        df_new = pd.read_csv(file.file)
+def upload_and_append(file: UploadFile = File(...), sheet_name: str = "Data"):
+
+    try:
+        # Load uploaded file into a DataFrame
+        if file.filename.endswith(".csv"):
+            df_new = pd.read_csv(file.file)
+        else:
+            df_new = pd.read_excel(file.file, sheet_name=sheet_name, engine="openpyxl")
+
+        # Clean column names
+        df_new.columns = df_new.columns.str.strip().str.lower()
+
+        # Load existing Excel file if it exists
+        if os.path.exists(DATA_PATH):
+            df_existing = pd.read_excel(DATA_PATH, engine="openpyxl")
+            df_existing.columns = df_existing.columns.str.strip().str.lower()
+            df_new = df_new[df_existing.columns]
+            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+        else:
+            df_combined = df_new
+
+        # Save back to the same file
+        df_combined.to_excel(DATA_PATH, index=False, engine="openpyxl")
+
+        return f"{len(df_new)} records appended successfully."
+
+    except ValueError as e:
+        return {"error": f"Sheet '{sheet_name}' not found or unreadable."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class TextUploadRequest(BaseModel):
+    text: str
+    label: int
+
+def append_record(record_obj : TextUploadRequest):
+    # Convert class object to dict
+    if not isinstance(record_obj, dict):
+        try:
+            record = vars(record_obj)
+        except Exception:
+            raise ValueError("Could not extract dictionary from object.")
     else:
-        df_new = pd.read_excel(file.file, sheet_name="data", engine="openpyxl")
+        record = record_obj
 
-    # Clean column names
-    df_new.columns = df_new.columns.str.strip().str.lower()
+    # Validate expected fields
+    if "text" not in record or "label" not in record:
+        raise ValueError("Record must contain 'text' and 'label' fields.")
 
-    # Load existing Excel file if it exists
+    # Create a DataFrame from the new record
+    new_df = pd.DataFrame([record])
+
+    # Ensure column order and consistency
     if os.path.exists(DATA_PATH):
-        df_existing = pd.read_excel(DATA_PATH, engine="openpyxl")
-        df_existing.columns = df_existing.columns.str.strip().str.lower()
-        df_new = df_new[df_existing.columns]
-        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+        existing_df = pd.read_excel(DATA_PATH, engine="openpyxl")
+        existing_df.columns = existing_df.columns.str.strip().str.lower()
+        new_df.columns = new_df.columns.str.strip().str.lower()
+
+        # Reorder columns to match existing file
+        new_df = new_df[existing_df.columns]
+        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
     else:
-        df_combined = df_new
+        combined_df = new_df
 
-    # Save back to the same file
-    df_combined.to_excel(DATA_PATH, index=False, engine="openpyxl")
-
-    return f"{len(df_new)} records appended successfully."
+    # Save back to Excel
+    combined_df.to_excel(DATA_PATH, index=False, engine="openpyxl")
+    print("Record appended successfully.")

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from model_service import train_and_save_model, evaluate_model, upload_and_append
+from pydantic import BaseModel
+from model_service import train_and_save_model, evaluate_model, upload_and_append, append_record
 
 router = APIRouter()
 
@@ -25,8 +26,13 @@ async def upload_data(file: UploadFile = File(...)):
     if not file.filename.endswith((".csv", ".xlsx")):
         raise HTTPException(status_code=400, detail="Only .csv or .xlsx files are allowed.")
 
-    try:
-        return upload_and_append(file)
+    return upload_and_append(file)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+class TextUploadRequest(BaseModel):
+    text: str
+    label: int
+
+@router.post("/append_text")
+def append_text(request: TextUploadRequest):
+    append_record(request)
