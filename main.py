@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from scrape_controller import router as scrape_router
-from text_controller import router as text_router
-from video_controller import router as video_router
-from model_controller import router as model_router
+from input_controller import router as input_router
+from admin_controller import router as admin_router
 
 app = FastAPI()
 
@@ -16,7 +14,5 @@ app.add_middleware( # type: ignore[arg-type]
 )
 
 # Include routes
-app.include_router(scrape_router, prefix="/api")
-app.include_router(text_router, prefix="/api")
-app.include_router(video_router, prefix="/api")
-app.include_router(model_router, prefix="/api")
+app.include_router(input_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
-from model_service import train_and_save_model, evaluate_model, upload_and_append, append_record
+from model_service import (train_and_save_model, evaluate_model, upload_and_append, append_record, fully_evaluate_model, download_cm, download_roc)
 
 router = APIRouter()
 
@@ -36,3 +36,27 @@ class TextUploadRequest(BaseModel):
 @router.post("/append_text")
 def append_text(request: TextUploadRequest):
     append_record(request)
+
+@router.get("/evaluate")
+def fully_evaluating_model():
+    try:
+        print("Received request to fully evaluate the model.")
+        return fully_evaluate_model()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error evaluating model: {str(e)}")
+
+@router.get("/download/confusion")
+def downloading_cm():
+    try:
+        print("Received request to download confusion chart.")
+        return download_cm
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error evaluating model: {str(e)}")
+
+@router.get("/download/auc")
+def downloading_roc():
+    try:
+        print("Received request to download auc chart.")
+        return download_roc
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error evaluating model: {str(e)}")

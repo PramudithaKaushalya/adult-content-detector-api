@@ -1,19 +1,25 @@
 import os
 from fastapi import UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
 import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 import torch
 from pydantic import BaseModel
 from torch.utils.data import DataLoader
 from dataset import TextDataset, collate_fn, build_vocab, tokenize_text
 from predict import predict
 from model import Model
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 # Hyperparameters
 BATCH_SIZE = 32
 EPOCHS = 10
 DATA_PATH = 'data.xlsx'
 MODEL_PATH = "trained_model.pth"
-
+PLOTS_DIR = "evaluation_plots"
+os.makedirs(PLOTS_DIR, exist_ok=True)
 
 def train_and_save_model():
     train_data, test_data, vocab = get_train_and_test_data()
@@ -145,7 +151,6 @@ def upload_and_append(file: UploadFile = File(...), sheet_name: str = "Data"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 class TextUploadRequest(BaseModel):
     text: str
     label: int
@@ -182,3 +187,67 @@ def append_record(record_obj : TextUploadRequest):
     # Save back to Excel
     combined_df.to_excel(DATA_PATH, index=False, engine="openpyxl")
     print("Record appended successfully.")
+
+def fully_evaluate_model():
+    train_data, test_data, vocab = get_train_and_test_data()
+    model, device = load_trained_model(vocab)
+
+    y_true, y_pred, y_probs = [], [], []
+
+    for tokens, label in train_data:
+        indices = [vocab.get(tok, vocab["<UNK>"]) for tok in tokens]
+        tensor = torch.tensor(indices).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            output = model(tensor)
+            probs = torch.softmax(output, dim=1).cpu().numpy()[0]
+            pred = int(torch.argmax(output, dim=1).item())
+
+        y_true.append(label)
+        y_pred.append(pred)
+        y_probs.append(probs)
+
+    # Generate Metrics
+    summary = classification_report(y_true, y_pred, output_dict=True)
+    cm = confusion_matrix(y_true, y_pred)
+
+    # Confusion Matrix Plot
+    fig_cm, ax = plt.subplots()
+    ax.matshow(cm, cmap="Blues")
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, cm[i, j], va='center', ha='center', color='black')
+
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    cm_path = os.path.join(PLOTS_DIR, "confusion_matrix.png")
+    plt.savefig(cm_path)
+    plt.close(fig_cm)
+
+    # AUC-ROC Plot
+    y_score = [prob[1] for prob in y_probs]  # probability of class 1
+    fpr, tpr, _ = roc_curve(y_true, y_score)
+    roc_auc = auc(fpr, tpr)
+
+    fig_roc, ax = plt.subplots()
+    ax.plot(fpr, tpr, label=f'AUC = {roc_auc:.2f}')
+    ax.plot([0, 1], [0, 1], linestyle='--')
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("AUC-ROC Curve")
+    plt.legend()
+    roc_path = os.path.join(PLOTS_DIR, "auc_roc_curve.png")
+    plt.savefig(roc_path)
+    plt.close(fig_roc)
+
+    print(f"classification_report {summary}")
+    return {
+        "classification_report": summary
+    }
+
+def download_cm():
+    return FileResponse(os.path.join(PLOTS_DIR, "confusion_matrix.png"), media_type="image/png")
+
+def download_roc():
+    return FileResponse(os.path.join(PLOTS_DIR, "auc_roc_curve.png"), media_type="image/png")

@@ -8,4 +8,6 @@ pip install fastapi uvicorn python-multipart ffmpeg-python openai-whisper
 
 #run fast API application
 
+venv\Scripts\activate
+
 uvicorn main:app --reload
