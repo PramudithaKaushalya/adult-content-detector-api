@@ -22,7 +22,7 @@ PLOTS_DIR = "evaluation_plots"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 def train_and_save_model():
-    train_data, test_data, vocab = get_train_and_test_data()
+    train_data, test_data, vocab = read_data_set()
 
     # Create dataset and dataloader
     train_dataset = TextDataset(train_data, vocab)
@@ -60,7 +60,7 @@ def load_trained_model(vocab):
     return model, device
 
 def evaluate_model():
-    train_data, test_data, vocab = get_train_and_test_data()
+    train_data, test_data, vocab = read_data_set()
 
     """Evaluates the trained model on the test dataset."""
     model, device = load_trained_model(vocab)
@@ -79,7 +79,7 @@ def evaluate_model():
     return f"Test Accuracy: {accuracy:.2f}%, \nPrecision: {precision:.2f}, \nRecall: {recall:.2f}, \nF1-score: {f1:.2f}"
 
 def predict_from_model(input_text):
-    train_data, test_data, vocab = get_train_and_test_data()
+    train_data, test_data, vocab = read_data_set()
 
     """Runs predictions using the trained model."""
     model, device = load_trained_model(vocab)
@@ -101,7 +101,7 @@ def predict_from_model(input_text):
             "description": f"This is classified as **Non-Adult Content** with probability {probabilities[0][0]:.2f}."
         }
 
-def get_train_and_test_data():
+def read_data_set():
     # Load dataset
     data = pd.read_excel(DATA_PATH)
     data = data[['text', 'label']]
@@ -189,7 +189,7 @@ def append_record(record_obj : TextUploadRequest):
     print("Record appended successfully.")
 
 def fully_evaluate_model():
-    train_data, test_data, vocab = get_train_and_test_data()
+    train_data, test_data, vocab = read_data_set()
     model, device = load_trained_model(vocab)
 
     y_true, y_pred, y_probs = [], [], []

@@ -5,7 +5,7 @@ from admin_controller import router as admin_router
 
 app = FastAPI()
 
-app.add_middleware( # type: ignore[arg-type]
+app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,

@@ -9,6 +9,7 @@ import shutil
 import whisper
 import ffmpeg
 import os
+import requests
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ class ScrapeRequest(BaseModel):
 @router.post("/web_scrape")
 def scrape_page(web_request: ScrapeRequest):
     try:
-        response = web_request.get(web_request.url, timeout=10)
+        response = requests.get(web_request.url, timeout=10)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")

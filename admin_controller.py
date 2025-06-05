@@ -35,7 +35,8 @@ class TextUploadRequest(BaseModel):
 
 @router.post("/append_text")
 def append_text(request: TextUploadRequest):
-    append_record(request)
+     # append_record(request)
+    print("Received request to append text.")
 
 @router.get("/evaluate")
 def fully_evaluating_model():
