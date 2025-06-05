@@ -16,8 +16,11 @@ import matplotlib.pyplot as plt
 # Hyperparameters
 BATCH_SIZE = 32
 EPOCHS = 10
-DATA_PATH = 'data.xlsx'
-MODEL_PATH = "trained_model.pth"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data.xlsx")
+MODEL_PATH = os.path.join(BASE_DIR, "trained_model.pth")
+
 PLOTS_DIR = "evaluation_plots"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
