@@ -61,15 +61,20 @@ def load_trained_model(vocab):
 
 def evaluate_model():
     train_data, test_data, vocab = read_data_set()
+    print("Received request to evaluate model. 1")
 
     """Evaluates the trained model on the test dataset."""
     model, device = load_trained_model(vocab)
+    print("Received request to evaluate model. 2")
 
     test_dataset = TextDataset(test_data, vocab)
+    print("Received request to evaluate model. 3")
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=collate_fn)
+    print("Received request to evaluate model. 4")
 
     # Evaluate the model and get all metrics
     accuracy, precision, recall, f1 = model.evaluate(test_dataloader)
+    print("Received request to evaluate model. 5")
 
     print(f"Test Accuracy: {accuracy:.2f}%")
     print(f"Precision: {precision:.2f}")

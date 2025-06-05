@@ -15,6 +15,7 @@ def train_model():
 @router.get("/evaluate_model")
 def evaluate_trained_model():
     try:
+        print("Received request to evaluate model.")
         return evaluate_model()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error evaluating model: {str(e)}")
@@ -35,8 +36,8 @@ class TextUploadRequest(BaseModel):
 
 @router.post("/append_text")
 def append_text(request: TextUploadRequest):
-     # append_record(request)
     print("Received request to append text.")
+    append_record(request)
 
 @router.get("/evaluate")
 def fully_evaluating_model():
