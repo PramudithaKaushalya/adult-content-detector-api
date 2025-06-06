@@ -11,7 +11,7 @@ class Model(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        """Must function for train model"""
+        # Must function for train model
         embedded = self.embedding(x)
         _, (hidden, _) = self.lstm(embedded)
         hidden = torch.cat((hidden[-2], hidden[-1]), dim=1)  # Concatenate both directions
@@ -36,7 +36,7 @@ class Model(nn.Module):
             print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss / len(train_dataloader)}")
 
     def evaluate(self, test_dataloader):
-        """Evaluates the model and returns accuracy, precision, recall, and F1-score."""
+        # Evaluates the model and returns accuracy, precision, recall, and F1-score.
         self.eval()
         all_labels = []
         all_preds = []

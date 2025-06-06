@@ -11,3 +11,8 @@ pip install fastapi uvicorn python-multipart ffmpeg-python openai-whisper
 venv\Scripts\activate
 
 uvicorn main:app --reload
+
+#Create requirements.txt
+
+pip freeze > requirements.txt
+

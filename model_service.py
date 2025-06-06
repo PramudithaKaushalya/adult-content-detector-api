@@ -43,7 +43,7 @@ def train_and_save_model():
     return "Successfully trained and saved the model"
 
 def load_trained_model(vocab):
-    """Loads the trained model from disk and ensures compatibility."""
+    # Loads the trained model from disk and ensures compatibility.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize model with correct vocab size
@@ -64,20 +64,16 @@ def load_trained_model(vocab):
 
 def evaluate_model():
     train_data, test_data, vocab = read_data_set()
-    print("Received request to evaluate model. 1")
-
-    """Evaluates the trained model on the test dataset."""
-    model, device = load_trained_model(vocab)
     print("Received request to evaluate model. 2")
 
+    # Evaluates the trained model on the test dataset.
+    model, device = load_trained_model(vocab)
+
     test_dataset = TextDataset(test_data, vocab)
-    print("Received request to evaluate model. 3")
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=collate_fn)
-    print("Received request to evaluate model. 4")
 
     # Evaluate the model and get all metrics
     accuracy, precision, recall, f1 = model.evaluate(test_dataloader)
-    print("Received request to evaluate model. 5")
 
     print(f"Test Accuracy: {accuracy:.2f}%")
     print(f"Precision: {precision:.2f}")
@@ -89,7 +85,7 @@ def evaluate_model():
 def predict_from_model(input_text):
     train_data, test_data, vocab = read_data_set()
 
-    """Runs predictions using the trained model."""
+    # Runs predictions using the trained model.
     model, device = load_trained_model(vocab)
 
     predicted_class, probabilities = predict(model, input_text, vocab)
@@ -110,6 +106,7 @@ def predict_from_model(input_text):
         }
 
 def read_data_set():
+    print("Received request to evaluate model. 1" + DATA_PATH)
     # Load dataset
     data = pd.read_excel(DATA_PATH)
     data = data[['text', 'label']]

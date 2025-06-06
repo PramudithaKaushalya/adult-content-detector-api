@@ -20,24 +20,23 @@ class TextDataset(Dataset):
 
 
 def clean_text(text):
-    """Preprocess text: remove special characters and convert to lowercase."""
+    # Preprocess text: remove special characters and convert to lowercase.
     text = re.sub(r"[^අ-ෆ ]", "", text)  # Keep Sinhala characters
     return text.lower()
 
 def tokenize_text(text):
-    """Tokenize and clean text."""
+    # Tokenize and clean text.
     return word_tokenize(clean_text(text))
 
 def build_vocab(data, min_freq=1):
-    """Build vocabulary from tokenized data."""
+    # Build vocabulary from tokenized data.
     counter = Counter()
-    for tokens, _ in data:  # tokens is already a list (tokenized)
+    for tokens, _ in data:  # tokens are already a list (tokenized)
         counter.update(tokens)
 
     vocab = {word: idx for idx, (word, count) in enumerate(counter.items()) if count >= min_freq}
     vocab['<PAD>'] = len(vocab)  # Add padding token
     vocab['<UNK>'] = len(vocab)  # Add unknown token
-
     return vocab
 
 def collate_fn(batch):
